@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .cursor {
+      position: absolute;
+      top: 50;
+      left: 50;
+      transition: top .5s, left .5s;
+    }
+
+    body {
+      cursor: url("https://s3-us-west-2.amazonaws.com/s.cdpn.io/9632/happy.png"), auto;
+    }
+  </style>
+</head>
+
+<body onmousemove="handleMouseChange(event)">
+  <div>Count: <span id="count">0</span></div>
+</body>
+<script src="https://cdn.socket.io/3.1.3/socket.io.min.js"></script>
+<script>
+  var socket = io({
+    reconnection: false
+  });
+
+  var mutex = 0;
+  setInterval(function(){ mutex = 0; }, 100);
+
+  function handleMouseChange(e){
+    if(mutex === 0){
+      mutex = 1;
+      var x = e.clientX/window.innerWidth;
+      var y = e.clientY/window.innerHeight;
+      socket.volatile.emit("mousemove", x, y);
+    }
+  }
+
+  socket.on('fetchpeers', (peers) => {
+    peers?.map(peer => {
+      document.body.innerHTML += `
+        <div class="cursor" id="${peer.id}">
+          <img src="https://image.flaticon.com/icons/png/512/650/650189.png" alt="cursor" height="30" width="30">
+          <span>${peer.id}</span>
+        </div>
+      `;
+      document.getElementById(peer.id).style.top = peer.y*100 + "%";
+      document.getElementById(peer.id).style.left = peer.x*100 + "%";
+    })
+  })
+
+  socket.on('peermove', (id, x, y) => {
+    document.getElementById(id).style.top = y*100 + "%";
+    document.getElementById(id).style.left = x*100 + "%";
+  })
+
+  socket.on('peerconnect', (id) => {
+    document.body.innerHTML += `
+      <div class="cursor" id="${id}">
+        <img src="https://image.flaticon.com/icons/png/512/650/650189.png" alt="cursor" height="30" width="30">
+        <span>${id}</span>
+      </div>
+    `;
+  })
+
+  socket.on('peerdisconnect', (id) => {
+    var elem = document.getElementById(id);
+    elem.parentNode.removeChild(elem);
+  })
+
+  socket.on('updateCount', (count) => {
+    document.getElementById("count").innerHTML = count;
+  })
+
+</script>
+
+</html>
